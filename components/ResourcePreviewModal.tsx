@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useEffect, useCallback, useState } from 'react';
+import React, { useEffect, useCallback, useState, useRef } from 'react';
 import { ResourceArticle } from '@/lib/resources-data';
+import { stopSpeech, speakArticle } from '@/lib/speech';
 import { X, Volume2, Square, Check, ArrowRight, Loader2, Sparkles } from 'lucide-react';
 import Link from 'next/link';
 
@@ -24,15 +25,23 @@ export default function ResourcePreviewModal({
 }: ResourcePreviewModalProps) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
+  const speechCtrlRef = useRef<{ stop: () => void } | null>(null);
 
   // 關閉時停止播放
   const handleClose = useCallback(() => {
-    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-      window.speechSynthesis.cancel();
-    }
+    speechCtrlRef.current?.stop();
+    stopSpeech();
     setIsPlaying(false);
     onClose();
   }, [onClose]);
+
+  // 元件卸載時清理
+  useEffect(() => {
+    return () => {
+      speechCtrlRef.current?.stop();
+      stopSpeech();
+    };
+  }, []);
 
   // ESC 鍵關閉
   useEffect(() => {
@@ -47,20 +56,19 @@ export default function ResourcePreviewModal({
 
   /** 播放/停止朗讀試聽 */
   const toggleSpeech = useCallback(() => {
-    if (typeof window === 'undefined' || !('speechSynthesis' in window) || !article) return;
+    if (!article) return;
 
     if (isPlaying) {
-      window.speechSynthesis.cancel();
+      speechCtrlRef.current?.stop();
+      stopSpeech();
       setIsPlaying(false);
     } else {
-      window.speechSynthesis.cancel();
-      const utterance = new SpeechSynthesisUtterance(article.content);
-      utterance.lang = 'en-US';
-      utterance.rate = 0.95;
-      utterance.onend = () => setIsPlaying(false);
-      utterance.onerror = () => setIsPlaying(false);
-      window.speechSynthesis.speak(utterance);
       setIsPlaying(true);
+      speechCtrlRef.current = speakArticle(article.content, {
+        rate: 0.95,
+        onEnd: () => setIsPlaying(false),
+        onError: () => setIsPlaying(false),
+      });
     }
   }, [isPlaying, article]);
 

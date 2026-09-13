@@ -5,6 +5,7 @@ import Navbar from '@/components/Navbar';
 import Flashcard, { FlashcardItem } from '@/components/Flashcard';
 import { getLessons } from '@/lib/store';
 import { Lesson } from '@/lib/types';
+import { speakWord } from '@/lib/speech';
 import {
   BookOpen,
   Shuffle,
@@ -192,16 +193,7 @@ export default function PracticePage() {
     }
   }, [filteredCards, currentIndex, toggleMastered, handleNext]);
 
-  // 朗讀單字
-  const speakWord = useCallback((text: string) => {
-    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-      window.speechSynthesis.cancel();
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.lang = 'en-US';
-      utterance.rate = 0.9;
-      window.speechSynthesis.speak(utterance);
-    }
-  }, []);
+
 
   // 統計數據
   const totalCount = allCards.length;

@@ -12,6 +12,12 @@ import {
   Repeat1,
   Settings,
 } from 'lucide-react';
+import {
+  getBestEnglishVoice,
+  splitTextIntoSentences,
+  stopSpeech,
+  registerUtterance,
+} from '@/lib/speech';
 
 interface AudioPlayerProps {
   /** 要朗讀的文章內容 */
@@ -41,13 +47,11 @@ export default function AudioPlayer({ text, onBoundary }: AudioPlayerProps) {
   const progressIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const startTimeRef = useRef<number>(0);
   const settingsRef = useRef<HTMLDivElement>(null);
-  const speakSentenceRef = useRef<(idx: number) => void>(() => {});
+  const speakSentenceRef = useRef<(idx: number, isSequential?: boolean) => void>(() => {});
 
   // 初始化句子陣列
   useEffect(() => {
-    sentences.current = text
-      .split(/(?<=[.!?])\s+/)
-      .filter((s) => s.trim().length > 0);
+    sentences.current = splitTextIntoSentences(text);
   }, [text]);
 
   // 點擊設定面板外部時關閉
@@ -64,7 +68,7 @@ export default function AudioPlayer({ text, onBoundary }: AudioPlayerProps) {
   // 清理
   useEffect(() => {
     return () => {
-      window.speechSynthesis?.cancel();
+      stopSpeech();
       if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
     };
   }, []);
@@ -82,15 +86,14 @@ export default function AudioPlayer({ text, onBoundary }: AudioPlayerProps) {
 
   /** 開始朗讀指定句子索引 */
   const speakSentence = useCallback(
-    (idx: number) => {
-      if (typeof window === 'undefined' || !window.speechSynthesis) return;
-      window.speechSynthesis.cancel();
+    (idx: number, isSequential: boolean = false) => {
+      if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
 
       if (idx >= sentences.current.length) {
         if (isLooping) {
           // 全文循環：重頭開始
           setCurrentSentenceIdx(0);
-          setTimeout(() => speakSentenceRef.current(0), 300);
+          setTimeout(() => speakSentenceRef.current(0, false), 300);
           return;
         }
         // 朗讀結束
@@ -100,62 +103,78 @@ export default function AudioPlayer({ text, onBoundary }: AudioPlayerProps) {
         return;
       }
 
-      const utterance = new SpeechSynthesisUtterance(sentences.current[idx]);
-      utterance.rate = rate;
-      utterance.volume = isMuted ? 0 : volume;
-      utterance.lang = 'en-US';
+      const doSpeak = () => {
+        if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
 
-      // 嘗試選擇最佳英文語音
-      const voices = window.speechSynthesis.getVoices();
-      const enVoice =
-        voices.find((v) => v.lang === 'en-US' && v.name.includes('Samantha')) ||
-        voices.find((v) => v.lang === 'en-US') ||
-        voices.find((v) => v.lang.startsWith('en'));
-      if (enVoice) utterance.voice = enVoice;
-
-      // 邊界事件：同步高亮
-      utterance.onboundary = (event) => {
-        if (event.name === 'word') {
-          // 計算全文中的字元偏移
-          let offset = 0;
-          for (let i = 0; i < idx; i++) {
-            offset += sentences.current[i].length + 1;
-          }
-          onBoundary?.(offset + event.charIndex);
+        if (window.speechSynthesis.paused) {
+          window.speechSynthesis.resume();
         }
-      };
 
-      // 結束事件：播放下一句
-      utterance.onend = () => {
-        const nextIdx = idx + 1;
-        setCurrentSentenceIdx(nextIdx);
-        speakSentenceRef.current(nextIdx);
-      };
+        const utterance = new SpeechSynthesisUtterance(sentences.current[idx]);
+        utterance.rate = rate;
+        utterance.volume = isMuted ? 0 : volume;
+        utterance.lang = 'en-US';
 
-      utterance.onerror = () => {
-        setIsPlaying(false);
+        const bestVoice = getBestEnglishVoice();
+        if (bestVoice) utterance.voice = bestVoice;
+
+        // 邊界事件：同步高亮
+        utterance.onboundary = (event) => {
+          if (event.name === 'word') {
+            // 計算全文中的字元偏移
+            let offset = 0;
+            for (let i = 0; i < idx; i++) {
+              offset += sentences.current[i].length + 1;
+            }
+            onBoundary?.(offset + event.charIndex);
+          }
+        };
+
+        const unregister = registerUtterance(utterance);
+
+        // 結束事件：播放下一句（直接接續，不呼叫 cancel 避免覆蓋訊號）
+        utterance.onend = () => {
+          unregister();
+          const nextIdx = idx + 1;
+          setCurrentSentenceIdx(nextIdx);
+          speakSentenceRef.current(nextIdx, true);
+        };
+
+        utterance.onerror = (e) => {
+          unregister();
+          if (e.error === 'canceled' || e.error === 'interrupted') return;
+          console.warn('AudioPlayer speech error:', e);
+          setIsPlaying(false);
+          if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
+        };
+
+        utteranceRef.current = utterance;
+        setCurrentSentenceIdx(idx);
+
+        // 模擬進度條
+        startTimeRef.current = Date.now();
+        const sentencesBefore = sentences.current.slice(0, idx).join(' ');
+        const baseProgress = text.length > 0 ? (sentencesBefore.length / text.length) * 100 : 0;
+        const sentenceDuration = estimateDuration(sentences.current[idx]);
+
         if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
+        progressIntervalRef.current = setInterval(() => {
+          const elapsed = Date.now() - startTimeRef.current;
+          const sentenceProgress = Math.min(elapsed / sentenceDuration, 1);
+          const sentenceRatio =
+            text.length > 0 ? (sentences.current[idx].length / text.length) * 100 : 0;
+          setProgress(Math.min(baseProgress + sentenceProgress * sentenceRatio, 100));
+        }, 100);
+
+        window.speechSynthesis.speak(utterance);
       };
 
-      utteranceRef.current = utterance;
-      setCurrentSentenceIdx(idx);
-
-      // 模擬進度條
-      startTimeRef.current = Date.now();
-      const sentencesBefore = sentences.current.slice(0, idx).join(' ');
-      const baseProgress = text.length > 0 ? (sentencesBefore.length / text.length) * 100 : 0;
-      const sentenceDuration = estimateDuration(sentences.current[idx]);
-
-      if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
-      progressIntervalRef.current = setInterval(() => {
-        const elapsed = Date.now() - startTimeRef.current;
-        const sentenceProgress = Math.min(elapsed / sentenceDuration, 1);
-        const sentenceRatio =
-          text.length > 0 ? (sentences.current[idx].length / text.length) * 100 : 0;
-        setProgress(Math.min(baseProgress + sentenceProgress * sentenceRatio, 100));
-      }, 100);
-
-      window.speechSynthesis.speak(utterance);
+      if (!isSequential) {
+        stopSpeech();
+        setTimeout(doSpeak, 40);
+      } else {
+        doSpeak();
+      }
     },
     [rate, volume, isMuted, isLooping, text, estimateDuration, onBoundary]
   );
@@ -166,45 +185,32 @@ export default function AudioPlayer({ text, onBoundary }: AudioPlayerProps) {
 
   /** 播放 / 暫停 */
   const togglePlay = useCallback(() => {
-    if (typeof window === 'undefined' || !window.speechSynthesis) return;
+    if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
 
     if (isPlaying) {
-      window.speechSynthesis.pause();
+      stopSpeech();
       setIsPlaying(false);
       if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
     } else {
-      if (window.speechSynthesis.paused) {
-        window.speechSynthesis.resume();
-        setIsPlaying(true);
-        // 重新啟動進度更新
-        startTimeRef.current = Date.now();
-        const sentenceDuration = estimateDuration(sentences.current[currentSentenceIdx] || '');
-        progressIntervalRef.current = setInterval(() => {
-          const elapsed = Date.now() - startTimeRef.current;
-          setProgress((prev) => Math.min(prev + (elapsed / sentenceDuration) * 0.1, 100));
-        }, 100);
-      } else {
-        setIsPlaying(true);
-        setProgress(0);
-        speakSentence(progress >= 99 ? 0 : currentSentenceIdx);
-      }
+      setIsPlaying(true);
+      const targetIdx = progress >= 99 ? 0 : currentSentenceIdx;
+      if (targetIdx === 0) setProgress(0);
+      speakSentence(targetIdx, false);
     }
-  }, [isPlaying, currentSentenceIdx, speakSentence, estimateDuration, progress]);
+  }, [isPlaying, currentSentenceIdx, speakSentence, progress]);
 
   /** 上一句 */
   const prevSentence = useCallback(() => {
     const newIdx = Math.max(0, currentSentenceIdx - 1);
-    window.speechSynthesis?.cancel();
     setIsPlaying(true);
-    speakSentence(newIdx);
+    speakSentence(newIdx, false);
   }, [currentSentenceIdx, speakSentence]);
 
   /** 下一句 */
   const nextSentence = useCallback(() => {
     const newIdx = Math.min(sentences.current.length - 1, currentSentenceIdx + 1);
-    window.speechSynthesis?.cancel();
     setIsPlaying(true);
-    speakSentence(newIdx);
+    speakSentence(newIdx, false);
   }, [currentSentenceIdx, speakSentence]);
 
   /** 切換循環模式 */
@@ -244,9 +250,9 @@ export default function AudioPlayer({ text, onBoundary }: AudioPlayerProps) {
         break;
       }
     }
-    window.speechSynthesis?.cancel();
+    stopSpeech();
     if (isPlaying) {
-      speakSentence(targetIdx);
+      speakSentence(targetIdx, false);
     } else {
       setCurrentSentenceIdx(targetIdx);
     }
@@ -359,8 +365,7 @@ export default function AudioPlayer({ text, onBoundary }: AudioPlayerProps) {
                       setShowSettings(false);
                       // 如果正在播放，重新開始當前句子以應用新速率
                       if (isPlaying) {
-                        window.speechSynthesis?.cancel();
-                        setTimeout(() => speakSentence(currentSentenceIdx), 100);
+                        speakSentence(currentSentenceIdx, false);
                       }
                     }}
                     className={`w-full text-left px-3 py-1.5 text-sm transition-colors cursor-pointer ${

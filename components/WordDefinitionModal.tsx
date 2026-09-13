@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { lookupWord } from '@/lib/translator';
+import { speakWord } from '@/lib/speech';
 import { Volume2, X, BookmarkPlus, Check, Trash2, Loader2 } from 'lucide-react';
 
 interface WordDefinitionModalProps {
@@ -26,23 +27,13 @@ export default function WordDefinitionModal({
   const [fetchedDef, setFetchedDef] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
 
+  // 是否已有有效定義（避免「請手動填寫」）
   const hasExistingDef = Boolean(
     existingDefinition && !existingDefinition.includes('請手動填寫')
   );
 
   const definition = hasExistingDef ? existingDefinition! : fetchedDef ?? '';
   const isLoading = !hasExistingDef && fetchedDef === null;
-
-  // 朗讀發音
-  const speakWord = useCallback((text: string) => {
-    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-      window.speechSynthesis.cancel();
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.lang = 'en-US';
-      utterance.rate = 0.9;
-      window.speechSynthesis.speak(utterance);
-    }
-  }, []);
 
   // 當打開彈窗且無現成釋義時，在線查詢
   useEffect(() => {
@@ -69,7 +60,7 @@ export default function WordDefinitionModal({
     return () => {
       isMounted = false;
     };
-  }, [isOpen, word, hasExistingDef, speakWord]);
+  }, [isOpen, word, hasExistingDef]);
 
   // ESC 鍵關閉
   useEffect(() => {

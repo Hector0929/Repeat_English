@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { Volume2, RotateCw, CheckCircle, XCircle, ArrowLeft, ArrowRight, Bookmark } from 'lucide-react';
+import { speakWord } from '@/lib/speech';
 
 export interface FlashcardItem {
   word: string;
@@ -34,15 +35,9 @@ export default function Flashcard({
   const [isFlipped, setIsFlipped] = useState(false);
 
   /** 朗讀單字 */
-  const speakWord = useCallback((text: string, e?: React.MouseEvent) => {
+  const handlePlayAudio = useCallback((text: string, e?: React.MouseEvent) => {
     e?.stopPropagation();
-    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-      window.speechSynthesis.cancel();
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.lang = 'en-US';
-      utterance.rate = 0.9;
-      window.speechSynthesis.speak(utterance);
-    }
+    speakWord(text, { rate: 0.9 });
   }, []);
 
   /** 鍵盤快捷鍵支援 */
@@ -107,7 +102,7 @@ export default function Flashcard({
               </span>
               <button
                 type="button"
-                onClick={(e) => speakWord(card.word, e)}
+                onClick={(e) => handlePlayAudio(card.word, e)}
                 className="w-10 h-10 rounded-full bg-[#CAE9FF]/30 hover:bg-[#CAE9FF] text-[#1B4965] flex items-center justify-center transition-colors shadow-xs"
                 title="朗讀發音"
                 aria-label="朗讀發音"
@@ -142,7 +137,7 @@ export default function Flashcard({
               </span>
               <button
                 type="button"
-                onClick={(e) => speakWord(card.word, e)}
+                onClick={(e) => handlePlayAudio(card.word, e)}
                 className="w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-colors"
                 title="再次朗讀"
                 aria-label="再次朗讀"
