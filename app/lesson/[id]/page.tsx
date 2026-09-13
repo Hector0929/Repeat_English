@@ -90,6 +90,39 @@ export default function LessonPage() {
     setCurrentCharIndex(charIndex);
   }, []);
 
+  /** 新增單字至此課單字庫 */
+  const handleAddWord = useCallback(
+    async (word: string, definition: string) => {
+      if (!lesson) return;
+      const lower = word.toLowerCase().trim();
+      const exists = (lesson.vocabulary || []).some(
+        (v) => v.word.toLowerCase().trim() === lower
+      );
+      if (exists) return;
+
+      const newVocab = [...(lesson.vocabulary || []), { word, definition }];
+      const updated = { ...lesson, vocabulary: newVocab };
+      setLesson(updated);
+      await saveLesson(updated);
+    },
+    [lesson]
+  );
+
+  /** 從此課單字庫移除單字 */
+  const handleRemoveWord = useCallback(
+    async (word: string) => {
+      if (!lesson) return;
+      const lower = word.toLowerCase().trim();
+      const newVocab = (lesson.vocabulary || []).filter(
+        (v) => v.word.toLowerCase().trim() !== lower
+      );
+      const updated = { ...lesson, vocabulary: newVocab };
+      setLesson(updated);
+      await saveLesson(updated);
+    },
+    [lesson]
+  );
+
   // 載入中
   if (!isLoaded) {
     return (
@@ -165,6 +198,8 @@ export default function LessonPage() {
                 <ArticleReader
                   lesson={lesson}
                   currentCharIndex={currentCharIndex}
+                  onAddWord={handleAddWord}
+                  onRemoveWord={handleRemoveWord}
                 />
                 <AudioPlayer
                   text={lesson.content}
