@@ -1,0 +1,138 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400;1,9..40,500&family=Nunito:wght@300;400;500;600;700&display=swap');
+@import "tailwindcss";
+
+/* 設計系統色彩變數 */
+:root {
+  --color-primary: #1B4965;
+  --color-secondary: #5FA8D3;
+  --color-accent: #CAE9FF;
+  --color-cta: #E63946;
+  --color-bg: #F8F9FA;
+  --color-text: #1A1A2E;
+  --color-text-muted: #6B7280;
+  --color-border: #E5E7EB;
+  --background: #F8F9FA;
+  --foreground: #1A1A2E;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-primary: #1B4965;
+  --color-secondary: #5FA8D3;
+  --color-accent: #CAE9FF;
+  --color-cta: #E63946;
+  --color-cta-hover: #C62828;
+  --color-text-muted: #6B7280;
+  --color-border: #E5E7EB;
+  --font-sans: 'Nunito', sans-serif;
+  --font-heading: 'DM Sans', sans-serif;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: 'Nunito', sans-serif;
+}
+
+/* 標題字體 */
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'DM Sans', sans-serif;
+}
+
+/* 自訂捲軸 */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #CBD5E1;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #94A3B8;
+}
+
+/* 音訊播放器進度條樣式 */
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 6px;
+  border-radius: 3px;
+  outline: none;
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #E63946;
+  cursor: pointer;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+}
+input[type="range"]::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #E63946;
+  cursor: pointer;
+  border: none;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+}
+
+/* 詞彙高亮樣式 */
+.vocab-highlight {
+  text-decoration: underline;
+  text-decoration-color: #5FA8D3;
+  text-underline-offset: 3px;
+  font-style: italic;
+  color: #1B4965;
+  font-weight: 600;
+  cursor: help;
+  transition: background-color 0.2s;
+}
+.vocab-highlight:hover {
+  background-color: #CAE9FF;
+  border-radius: 2px;
+}
+
+/* 朗讀進度高亮 */
+.reading-highlight {
+  background-color: #FEF3C7;
+  border-radius: 2px;
+  transition: background-color 0.15s;
+}
+
+/* 拖拉排列互動 */
+.draggable-word {
+  user-select: none;
+  touch-action: none;
+}
+
+/* 動畫 */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-in {
+  animation: fadeIn 0.3s ease-out;
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-slide-up {
+  animation: slideUp 0.4s ease-out;
+}
+
+@keyframes pulse-subtle {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+.animate-pulse-subtle {
+  animation: pulse-subtle 2s infinite;
+}
