@@ -4,14 +4,20 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { Menu, X } from 'lucide-react';
 
+interface NavLink {
+  name: string;
+  href: string;
+  comingSoon?: boolean;
+}
+
 export default function Navbar() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   // 導航連結資料
-  const navLinks = [
+  const navLinks: NavLink[] = [
     { name: 'Lessons', href: '/' },
     { name: 'Practice', href: '/practice' },
-    { name: 'Resources', href: '#', comingSoon: true },
+    { name: 'Resources', href: '/resources' },
   ];
 
   return (
