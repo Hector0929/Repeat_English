@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Lesson } from '@/lib/types';
 import { getLessons, saveLesson, deleteLesson, generateId } from '@/lib/store';
-import { extractVocabulary } from '@/lib/exercises';
+import { extractVocabularyWithTranslation } from '@/lib/exercises';
 import Navbar from '@/components/Navbar';
 import LessonCard from '@/components/LessonCard';
 import AddLessonModal from '@/components/AddLessonModal';
@@ -42,7 +42,8 @@ export default function HomePage() {
 
   /** 新增課程 */
   const handleAddLesson = useCallback(async (title: string, content: string) => {
-    const vocabulary = extractVocabulary(content);
+    // 自動提取單字並查詢繁體中文釋義
+    const vocabulary = await extractVocabularyWithTranslation(content);
     const newLesson: Lesson = {
       id: generateId(),
       title,

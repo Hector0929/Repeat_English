@@ -10,7 +10,7 @@ export default function Navbar() {
   // 導航連結資料
   const navLinks = [
     { name: 'Lessons', href: '/' },
-    { name: 'Practice', href: '#', comingSoon: true },
+    { name: 'Practice', href: '/practice' },
     { name: 'Resources', href: '#', comingSoon: true },
   ];
 
