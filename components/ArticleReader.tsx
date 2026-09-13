@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useMemo } from 'react';
-import { Lesson, VocabularyItem } from '@/lib/types';
+import { Lesson } from '@/lib/types';
 
 interface ArticleReaderProps {
   lesson: Lesson;
@@ -12,9 +12,6 @@ export default function ArticleReader({ lesson, currentCharIndex = -1 }: Article
   // 將文章內容進行處理，高亮詞彙並支援目前朗讀位置
   const renderContent = useMemo(() => {
     if (!lesson.content) return null;
-
-    let textNodes: React.ReactNode[] = [];
-    let currentIndex = 0;
 
     // 如果沒有詞彙，直接返回文字（處理可能的朗讀高亮）
     if (!lesson.vocabulary || lesson.vocabulary.length === 0) {

@@ -30,16 +30,39 @@ export default function LessonPage() {
 
   // 載入課程
   useEffect(() => {
-    const loadedLesson = getLesson(lessonId);
-    if (loadedLesson) {
-      // 確保詞彙列表存在
-      if (!loadedLesson.vocabulary || loadedLesson.vocabulary.length === 0) {
-        loadedLesson.vocabulary = extractVocabulary(loadedLesson.content);
+    let isMounted = true;
+
+    async function fetchLessonData() {
+      try {
+        const [loadedLesson, lessonsList] = await Promise.all([
+          getLesson(lessonId),
+          getLessons(),
+        ]);
+
+        if (isMounted) {
+          if (loadedLesson) {
+            // 確保詞彙列表存在
+            if (!loadedLesson.vocabulary || loadedLesson.vocabulary.length === 0) {
+              loadedLesson.vocabulary = extractVocabulary(loadedLesson.content);
+            }
+            setLesson(loadedLesson);
+          }
+          setAllLessons(lessonsList);
+        }
+      } catch (error) {
+        console.error('載入課程失敗:', error);
+      } finally {
+        if (isMounted) {
+          setIsLoaded(true);
+        }
       }
-      setLesson(loadedLesson);
     }
-    setAllLessons(getLessons());
-    setIsLoaded(true);
+
+    fetchLessonData();
+
+    return () => {
+      isMounted = false;
+    };
   }, [lessonId]);
 
   /** 語音邊界回呼 — 同步文章高亮 */

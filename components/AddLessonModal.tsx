@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { X } from 'lucide-react';
 
 interface AddLessonModalProps {
@@ -14,25 +14,23 @@ export default function AddLessonModal({ isOpen, onClose, onSave }: AddLessonMod
   const [content, setContent] = useState('');
   const [error, setError] = useState('');
 
+  const handleClose = useCallback(() => {
+    setTitle('');
+    setContent('');
+    setError('');
+    onClose();
+  }, [onClose]);
+
   // 處理 ESC 鍵關閉
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key === 'Escape') handleClose();
     };
     if (isOpen) {
       window.addEventListener('keydown', handleKeyDown);
     }
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, onClose]);
-
-  // 重置表單狀態
-  useEffect(() => {
-    if (isOpen) {
-      setTitle('');
-      setContent('');
-      setError('');
-    }
-  }, [isOpen]);
+  }, [isOpen, handleClose]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -49,9 +47,7 @@ export default function AddLessonModal({ isOpen, onClose, onSave }: AddLessonMod
 
     // 儲存並關閉
     onSave(title.trim(), content.trim());
-    setTitle('');
-    setContent('');
-    onClose();
+    handleClose();
   };
 
   if (!isOpen) return null;

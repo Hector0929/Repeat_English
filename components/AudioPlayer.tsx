@@ -28,7 +28,7 @@ interface AudioPlayerProps {
 export default function AudioPlayer({ text, onBoundary }: AudioPlayerProps) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [rate, setRate] = useState(1.0);
-  const [volume, setVolume] = useState(1.0);
+  const [volume] = useState(1.0);
   const [isMuted, setIsMuted] = useState(false);
   const [isLooping, setIsLooping] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
@@ -41,6 +41,7 @@ export default function AudioPlayer({ text, onBoundary }: AudioPlayerProps) {
   const progressIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const startTimeRef = useRef<number>(0);
   const settingsRef = useRef<HTMLDivElement>(null);
+  const speakSentenceRef = useRef<(idx: number) => void>(() => {});
 
   // 初始化句子陣列
   useEffect(() => {
@@ -89,7 +90,7 @@ export default function AudioPlayer({ text, onBoundary }: AudioPlayerProps) {
         if (isLooping) {
           // 全文循環：重頭開始
           setCurrentSentenceIdx(0);
-          setTimeout(() => speakSentence(0), 300);
+          setTimeout(() => speakSentenceRef.current(0), 300);
           return;
         }
         // 朗讀結束
@@ -128,7 +129,7 @@ export default function AudioPlayer({ text, onBoundary }: AudioPlayerProps) {
       utterance.onend = () => {
         const nextIdx = idx + 1;
         setCurrentSentenceIdx(nextIdx);
-        speakSentence(nextIdx);
+        speakSentenceRef.current(nextIdx);
       };
 
       utterance.onerror = () => {
@@ -141,7 +142,6 @@ export default function AudioPlayer({ text, onBoundary }: AudioPlayerProps) {
 
       // 模擬進度條
       startTimeRef.current = Date.now();
-      const totalDuration = estimateDuration(text);
       const sentencesBefore = sentences.current.slice(0, idx).join(' ');
       const baseProgress = text.length > 0 ? (sentencesBefore.length / text.length) * 100 : 0;
       const sentenceDuration = estimateDuration(sentences.current[idx]);
@@ -159,6 +159,10 @@ export default function AudioPlayer({ text, onBoundary }: AudioPlayerProps) {
     },
     [rate, volume, isMuted, isLooping, text, estimateDuration, onBoundary]
   );
+
+  useEffect(() => {
+    speakSentenceRef.current = speakSentence;
+  }, [speakSentence]);
 
   /** 播放 / 暫停 */
   const togglePlay = useCallback(() => {

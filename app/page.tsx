@@ -20,12 +20,28 @@ export default function HomePage() {
 
   // 載入課程
   useEffect(() => {
-    setLessons(getLessons());
-    setIsLoaded(true);
+    let isMounted = true;
+    getLessons()
+      .then((data) => {
+        if (isMounted) {
+          setLessons(data);
+          setIsLoaded(true);
+        }
+      })
+      .catch((error) => {
+        console.error('讀取課程列表失敗:', error);
+        if (isMounted) {
+          setIsLoaded(true);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   /** 新增課程 */
-  const handleAddLesson = useCallback((title: string, content: string) => {
+  const handleAddLesson = useCallback(async (title: string, content: string) => {
     const vocabulary = extractVocabulary(content);
     const newLesson: Lesson = {
       id: generateId(),
@@ -34,15 +50,20 @@ export default function HomePage() {
       vocabulary,
       createdAt: Date.now(),
     };
-    saveLesson(newLesson);
-    setLessons(getLessons());
+    // 樂觀更新畫面
+    setLessons((prev) => [newLesson, ...prev]);
+    await saveLesson(newLesson);
+    const updated = await getLessons();
+    setLessons(updated);
   }, []);
 
   /** 刪除課程 */
-  const handleDeleteLesson = useCallback((id: string) => {
+  const handleDeleteLesson = useCallback(async (id: string) => {
     if (window.confirm('Are you sure you want to delete this lesson?')) {
-      deleteLesson(id);
-      setLessons(getLessons());
+      setLessons((prev) => prev.filter((l) => l.id !== id));
+      await deleteLesson(id);
+      const updated = await getLessons();
+      setLessons(updated);
     }
   }, []);
 

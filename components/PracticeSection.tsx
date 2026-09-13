@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo, useCallback } from 'react';
-import { ExerciseItem, FillInBlankExercise, MultipleChoiceExercise, SentenceOrderExercise, VocabularyItem } from '@/lib/types';
+import { FillInBlankExercise, MultipleChoiceExercise, SentenceOrderExercise, VocabularyItem } from '@/lib/types';
 import { generateExercises } from '@/lib/exercises';
 import FillInBlank from './FillInBlank';
 import MultipleChoice from './MultipleChoice';
