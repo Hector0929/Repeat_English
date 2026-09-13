@@ -3,8 +3,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Lesson } from '@/lib/types';
-import { getLesson, getLessons } from '@/lib/store';
+import { getLesson, getLessons, saveLesson } from '@/lib/store';
 import { extractVocabulary } from '@/lib/exercises';
+import { translateVocabulary } from '@/lib/translator';
 import Navbar from '@/components/Navbar';
 import ArticleReader from '@/components/ArticleReader';
 import AudioPlayer from '@/components/AudioPlayer';
@@ -46,6 +47,25 @@ export default function LessonPage() {
               loadedLesson.vocabulary = extractVocabulary(loadedLesson.content);
             }
             setLesson(loadedLesson);
+
+            // 若單字釋義尚未翻譯，在背景自動補齊繁體中文並更新至 Supabase
+            const needsTranslation = loadedLesson.vocabulary.some(
+              (v) => !v.definition || v.definition.includes('請手動填寫')
+            );
+            if (needsTranslation) {
+              translateVocabulary(loadedLesson.vocabulary.map((v) => v.word)).then(
+                (translatedVocab) => {
+                  if (isMounted && translatedVocab.length > 0) {
+                    setLesson((prev) => {
+                      if (!prev) return null;
+                      const updated = { ...prev, vocabulary: translatedVocab };
+                      saveLesson(updated);
+                      return updated;
+                    });
+                  }
+                }
+              );
+            }
           }
           setAllLessons(lessonsList);
         }

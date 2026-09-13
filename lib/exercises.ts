@@ -30,36 +30,84 @@ function shuffleArray<T>(array: T[]): T[] {
   return newArray;
 }
 
+import { translateVocabulary } from './translator';
+
 /**
- * 從文章自動提取重點詞彙（簡易版：選取較長、可能較不常見的詞）
+ * 簡易詞幹還原（避免提取出 graduate, graduates, graduated 等重複單字）
  */
-export function extractVocabulary(content: string): VocabularyItem[] {
-  // 移除標點符號並轉小寫
-  const words = content.replace(/[.,!?()[\]{}"']/g, '')
-                       .toLowerCase()
-                       .split(/\s+/);
-  
-  // 計算詞頻
+function stemWord(word: string): string {
+  if (word.endsWith('ies')) return word.slice(0, -3) + 'y';
+  if (word.endsWith('ing') && word.length > 5) return word.slice(0, -3);
+  if (word.endsWith('ed') && word.length > 4) return word.slice(0, -2);
+  if (word.endsWith('es') && word.length > 4) return word.slice(0, -2);
+  if (word.endsWith('s') && !word.endsWith('ss') && word.length > 3) return word.slice(0, -1);
+  return word;
+}
+
+/**
+ * 從文章提取重點詞彙清單（自動過濾停用詞與詞根去重）
+ */
+export function extractVocabularyWords(content: string): string[] {
+  // 移除標點符號、括號、引號並轉小寫
+  const clean = content.replace(/[.,!?()[\]{}"'“”‘’]/g, ' ').toLowerCase();
+  const rawWords = clean.split(/\s+/).filter((w) => /^[a-z]+$/.test(w));
+
+  const stopWords = new Set([
+    'because', 'through', 'should', 'would', 'could', 'their', 'there', 'where', 'which',
+    'another', 'before', 'around', 'started', 'wanted', 'course', 'except', 'really',
+    'months', 'stayed', 'decided', 'promised', 'refused', 'minute', 'waiting', 'little',
+    'something', 'someone', 'everything', 'everyone', 'always', 'between', 'during'
+  ]);
+
   const wordCount: Record<string, number> = {};
-  words.forEach(w => {
-    if (w.length > 5) { // 只挑選長度大於 5 的單字
+  rawWords.forEach((w) => {
+    if (w.length > 4 && !stopWords.has(w)) {
       wordCount[w] = (wordCount[w] || 0) + 1;
     }
   });
 
-  // 常見的虛詞/代名詞排除清單
-  const stopWords = ['because', 'through', 'should', 'would', 'could', 'their', 'there', 'where', 'which'];
-  
-  const selectedWords = Object.keys(wordCount)
-    .filter(w => !stopWords.includes(w))
-    // 依長度和頻率排序，選出看起來像「重點」的詞
-    .sort((a, b) => b.length - a.length)
-    .slice(0, 10); // 最多選 10 個
+  // 依詞頻與長度綜合排序
+  const sorted = Object.keys(wordCount).sort(
+    (a, b) => (wordCount[b] - wordCount[a]) || (b.length - a.length)
+  );
 
-  return selectedWords.map(word => ({
+  const seenStems = new Set<string>();
+  const selectedWords: string[] = [];
+
+  for (const w of sorted) {
+    const s = stemWord(w);
+    if (!seenStems.has(s) && !seenStems.has(w)) {
+      seenStems.add(s);
+      seenStems.add(w);
+      // 若原文章中有出現更簡潔的原形詞，優先使用原形
+      const baseForm = rawWords.find(
+        (rw) => rw !== w && (stemWord(rw) === s || rw === s) && rw.length < w.length
+      );
+      selectedWords.push(baseForm || w);
+      if (selectedWords.length >= 8) break;
+    }
+  }
+
+  return selectedWords;
+}
+
+/**
+ * 從文章自動提取重點詞彙（同步版，向後相容）
+ */
+export function extractVocabulary(content: string): VocabularyItem[] {
+  const words = extractVocabularyWords(content);
+  return words.map((word) => ({
     word,
-    definition: '（自動提取，請手動填寫定義）'
+    definition: '（自動提取，請手動填寫定義）',
   }));
+}
+
+/**
+ * 異步版單字提取（自動翻譯成繁體中文解釋）
+ */
+export async function extractVocabularyWithTranslation(content: string): Promise<VocabularyItem[]> {
+  const words = extractVocabularyWords(content);
+  return await translateVocabulary(words);
 }
 
 /**
