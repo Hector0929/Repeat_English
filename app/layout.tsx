@@ -21,7 +21,11 @@ export const metadata: Metadata = {
   description: "透過反覆閱讀與練習，輕鬆掌握英文文章",
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default function RootLayout({
+  children,
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
   return (
     <html
       lang="en"
